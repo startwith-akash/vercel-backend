@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List
 from logic import sanitize_input, calculate_actual
 
 app = FastAPI()
@@ -14,6 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Pydantic models
 class SkillItem(BaseModel):
     skill: str
     claimed: int
@@ -22,6 +23,7 @@ class SkillItem(BaseModel):
 class AnalyzeRequest(BaseModel):
     skills: List[SkillItem]
 
+# Routes
 @app.get("/")
 def home():
     return {"status": "Backend running securely", "message": "Skill Gap Analyzer API"}
@@ -32,22 +34,14 @@ def health_check():
 
 @app.post("/analyze")
 def analyze(data: AnalyzeRequest):
-    """
-    Analyze skill gap for each submitted skill
-    Returns claimed level, actual level, and gap
-    """
     results = []
-    
     for item in data.skills:
-        # Sanitize user input for security
+        # Sanitize user input
         clean_answer = sanitize_input(item.answer)
-        
-        # Calculate actual skill level based on response
+        # Calculate actual skill level
         actual = calculate_actual(clean_answer)
-        
         # Calculate gap
         gap = item.claimed - actual
-        
         results.append({
             "skill": item.skill,
             "claimed": item.claimed,
@@ -55,14 +49,13 @@ def analyze(data: AnalyzeRequest):
             "gap": gap,
             "feedback": get_feedback(gap)
         })
-    
     return {
         "analysis": results,
         "total_skills_analyzed": len(results)
     }
 
+# Feedback logic
 def get_feedback(gap: int) -> str:
-    """Generate helpful feedback based on gap size"""
     if gap <= 0:
         return "Excellent! Your skills match your claims."
     elif gap == 1:
@@ -71,7 +64,3 @@ def get_feedback(gap: int) -> str:
         return "Moderate gap - focused practice recommended."
     else:
         return "Significant gap - substantial learning required."
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
